@@ -66,6 +66,28 @@
   .btn.primary{background:var(--accent);color:#08130c;border-color:var(--accent)}
   .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:6px;
     background:var(--card2);border:1px solid var(--line);color:var(--muted);margin-left:6px}
+  /* edit mode */
+  .ein{font:inherit;color:var(--txt);background:var(--card2);border:1px solid var(--line);
+    border-radius:7px;padding:5px 8px;width:100%;font-size:13px}
+  .ein:focus{outline:none;border-color:var(--accent2)}
+  .ein.title{font-size:15px;font-weight:600}
+  .ein.icon{width:46px;text-align:center;flex:0 0 46px}
+  .erow{display:flex;align-items:center;gap:8px;padding:9px;border-radius:11px}
+  .erow+.erow{border-top:1px solid var(--line)}
+  .efields{flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  @media(max-width:560px){.efields{grid-template-columns:1fr}}
+  .del{flex:0 0 auto;background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;
+    width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;line-height:1;
+    display:flex;align-items:center;justify-content:center;font-weight:600}
+  .del:active{background:#fecaca}
+  .addbtn{margin:8px 9px 4px;background:var(--card2);border:1px dashed var(--line);
+    color:var(--accent);padding:9px;border-radius:10px;width:calc(100% - 18px);
+    cursor:pointer;font-size:13px;font-weight:500}
+  .addbtn:active{background:var(--line)}
+  .ehead{display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid var(--line)}
+  .ehead .del{margin-left:auto}
+  .editing-banner{background:#fef9c3;border:1px solid #fde68a;color:#854d0e;
+    padding:9px 13px;border-radius:11px;margin:0 14px 14px;font-size:13px}
 </style>
 </head>
 <body>
@@ -82,6 +104,7 @@
 
 <footer>
   <button class="btn" id="collapseAll">Hepsini Kapat</button>
+  <button class="btn" id="editBtn">✏️ Düzenle</button>
   <button class="btn primary" id="resetBtn">Günü Sıfırla</button>
 </footer>
 
@@ -154,62 +177,109 @@ const DATA = [
   ]},
 ];
 
-const FIXED = {icon:"📊", title:"Günlük Sabitler", rows:[
-  ["Su","5.5 - 6 litre"],
-  ["İyotlu Tuz","10 gr Himalaya Tuzu"],
-  ["Sebze","1 kapya + 1 yeşil biber + 100-120 gr ıspanak"],
-]};
-
-const NOTES = [
-  "Şekersiz soslar serbest",
-  "Şekersiz içecekler ve baharat serbest",
-  "Salatalık, kuşkonmaz ve kabak tüketimi önerilir",
-];
-
-const SHOP = {icon:"🛒", title:"Alışveriş Notları", rows:[
-  ["Multivitamin","Eczane uygun"],
-  ["Omega 3","Tanesi ~10 TL, buna göre al"],
-  ["C vitamini","Eczane"],
-  ["Milk Thistle","Nar Ecza daha ucuz"],
-  ["Magnezyum","Tanesi ~10 TL, buna göre al"],
-]};
+DATA.push({icon:"📊", title:"Günlük Sabitler", checkable:false, items:[
+  {n:"Su", a:"5.5 - 6 litre"},
+  {n:"İyotlu Tuz", a:"10 gr Himalaya Tuzu"},
+  {n:"Sebze", a:"1 kapya + 1 yeşil biber + 100-120 gr ıspanak"},
+  {n:"Şekersiz soslar serbest", a:""},
+  {n:"Şekersiz içecekler ve baharat serbest", a:""},
+  {n:"Salatalık, kuşkonmaz ve kabak tüketimi önerilir", a:""},
+]});
 
 // ---- state (in-memory only; resets each load — GitHub Pages safe) ----
 const state = {};
 let totalCount = 0;
+let editMode = false;
 
 function keyFor(s,i){return `${s}-${i}`}
+
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 function render(){
   const app = document.getElementById('app');
   app.innerHTML = '';
   totalCount = 0;
 
+  if(editMode){
+    const banner=document.createElement('div');
+    banner.className='editing-banner';
+    banner.textContent='✏️ Düzenleme modu açık. Metinleri değiştir, sil (✕) veya ekle (+). Bitince "Kaydet"e bas.';
+    app.appendChild(banner);
+  }
+
   DATA.forEach((sec, si)=>{
-    totalCount += sec.items.filter(x=>x.n).length;
+    const checkable = sec.checkable!==false;
+    if(checkable) totalCount += sec.items.filter(x=>x.n).length;
     const el = document.createElement('div');
-    el.className = 'section';
-    const doneN = sec.items.filter((x,i)=>x.n && state[keyFor(si,i)]).length;
+    el.className = 'section' + ((sec.collapsed && !editMode)?' collapsed':'');
+
+    if(editMode){
+      // editable header
+      const head=document.createElement('div');
+      head.className='ehead';
+      head.innerHTML=`<input class="ein icon" value="${esc(sec.icon)}" data-si="${si}" data-f="icon">
+        <input class="ein title" value="${esc(sec.title)}" data-si="${si}" data-f="title">
+        <button class="del" title="Bölümü sil">✕</button>`;
+      head.querySelector('.icon').addEventListener('input',e=>sec.icon=e.target.value);
+      head.querySelector('.title').addEventListener('input',e=>sec.title=e.target.value);
+      head.querySelector('.del').addEventListener('click',()=>{
+        if(confirm(`"${sec.title}" bölümü silinsin mi?`)){ DATA.splice(si,1); render(); }
+      });
+      el.appendChild(head);
+
+      const body=document.createElement('div'); body.className='sbody';
+      sec.items.forEach((it, ii)=>{
+        const row=document.createElement('div'); row.className='erow';
+        row.innerHTML=`<div class="efields">
+            <input class="ein" placeholder="İsim" value="${esc(it.n)}" data-f="n">
+            <input class="ein" placeholder="Miktar" value="${esc(it.a)}" data-f="a">
+            <input class="ein" placeholder="Zaman (ops.)" value="${esc(it.t)}" data-f="t">
+          </div><button class="del" title="Sil">✕</button>`;
+        row.querySelector('[data-f="n"]').addEventListener('input',e=>it.n=e.target.value);
+        row.querySelector('[data-f="a"]').addEventListener('input',e=>it.a=e.target.value);
+        row.querySelector('[data-f="t"]').addEventListener('input',e=>it.t=e.target.value);
+        row.querySelector('.del').addEventListener('click',()=>{ sec.items.splice(ii,1); render(); });
+        body.appendChild(row);
+      });
+      const add=document.createElement('button');
+      add.className='addbtn'; add.textContent='+ Madde ekle';
+      add.addEventListener('click',()=>{ sec.items.push({n:'',a:'',t:''}); render(); });
+      body.appendChild(add);
+      el.appendChild(body);
+      app.appendChild(el);
+      return;
+    }
+
+    // view mode
+    const doneN = checkable? sec.items.filter((x,i)=>x.n && state[keyFor(si,i)]).length : 0;
     const totN = sec.items.filter(x=>x.n).length;
     el.innerHTML = `
       <div class="shead">
-        <span class="lft"><span>${sec.icon}</span><span>${sec.title}</span></span>
-        <span class="lft"><span class="badge" data-badge="${si}">${doneN}/${totN}</span><span class="chev">▼</span></span>
+        <span class="lft"><span>${sec.icon}</span><span>${esc(sec.title)}</span></span>
+        <span class="lft">${checkable?`<span class="badge">${doneN}/${totN}</span>`:''}<span class="chev">▼</span></span>
       </div>
       <div class="sbody"></div>`;
     const body = el.querySelector('.sbody');
     sec.items.forEach((it, ii)=>{
       if(!it.n) return;
+      if(!checkable){
+        const fl=document.createElement('div'); fl.className='item';
+        fl.style.cursor='default';
+        fl.innerHTML=`<div class="itxt"><div class="iname">${esc(it.n)}</div>
+          <div class="imeta">${it.a?`<span class="pill">${esc(it.a)}</span>`:''}</div></div>`;
+        body.appendChild(fl);
+        return;
+      }
       const k = keyFor(si,ii);
       const row = document.createElement('div');
       row.className = 'item' + (state[k]?' done':'');
       row.innerHTML = `
-        <div class="cbox"><svg viewBox="0 0 24 24" fill="none" stroke="#08130c" stroke-width="3.5"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="cbox"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <div class="itxt">
-          <div class="iname">${it.n}</div>
+          <div class="iname">${esc(it.n)}</div>
           <div class="imeta">
-            ${it.a? `<span class="pill">${it.a}</span>`:''}
-            ${it.t? `<span class="pill time">⏱ ${it.t}</span>`:''}
+            ${it.a? `<span class="pill">${esc(it.a)}</span>`:''}
+            ${it.t? `<span class="pill time">⏱ ${esc(it.t)}</span>`:''}
           </div>
         </div>`;
       row.addEventListener('click', ()=>{ state[k]=!state[k]; render(); });
@@ -222,22 +292,16 @@ function render(){
     app.appendChild(el);
   });
 
-  // Fixed daily section
-  const f = document.createElement('div');
-  f.className='section';
-  f.innerHTML=`<div class="shead"><span class="lft"><span>${FIXED.icon}</span><span>${FIXED.title}</span></span><span class="chev">▼</span></div>
-    <div class="sbody"><div class="fixed-list">${FIXED.rows.map(r=>`<div class="fl"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('')}</div>
-    ${NOTES.map(n=>`<div class="note">• ${n}</div>`).join('')}</div>`;
-  f.querySelector('.shead').addEventListener('click',()=>f.classList.toggle('collapsed'));
-  app.appendChild(f);
-
-  // Shopping notes
-  const sh = document.createElement('div');
-  sh.className='section collapsed';
-  sh.innerHTML=`<div class="shead"><span class="lft"><span>${SHOP.icon}</span><span>${SHOP.title}</span></span><span class="chev">▼</span></div>
-    <div class="sbody"><div class="fixed-list">${SHOP.rows.map(r=>`<div class="fl"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('')}</div></div>`;
-  sh.querySelector('.shead').addEventListener('click',()=>sh.classList.toggle('collapsed'));
-  app.appendChild(sh);
+  if(editMode){
+    const addSec=document.createElement('button');
+    addSec.className='addbtn'; addSec.style.borderStyle='solid';
+    addSec.textContent='+ Yeni bölüm ekle';
+    addSec.addEventListener('click',()=>{
+      DATA.push({icon:'📌', title:'Yeni Bölüm', items:[{n:'',a:'',t:''}]});
+      render();
+    });
+    app.appendChild(addSec);
+  }
 
   updateProgress();
 }
@@ -249,6 +313,19 @@ function updateProgress(){
   document.getElementById('ptxt').textContent = `${done} / ${totalCount} tamamlandı`;
   document.getElementById('ppct').textContent = pct+'%';
 }
+
+document.getElementById('editBtn').addEventListener('click', e=>{
+  editMode=!editMode;
+  e.target.textContent = editMode? '✓ Kaydet':'✏️ Düzenle';
+  e.target.classList.toggle('primary', editMode);
+  document.getElementById('resetBtn').style.display = editMode?'none':'';
+  document.getElementById('collapseAll').style.display = editMode?'none':'';
+  // drop checkbox state for items that no longer exist
+  if(!editMode){
+    for(const k in state) delete state[k];
+  }
+  render();
+});
 
 document.getElementById('resetBtn').addEventListener('click', ()=>{
   for(const k in state) delete state[k];
