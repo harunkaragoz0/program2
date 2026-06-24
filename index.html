@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beslenme & Takviye Programı</title>
+<style>
+  :root{
+    --bg:#ffffff; --card:#ffffff; --card2:#f4f6f8; --line:#e4e8ec;
+    --txt:#1a2230; --muted:#6b7686; --accent:#16a34a; --accent2:#0284c7;
+    --done:#dcfce7; --shadow:0 2px 12px rgba(20,30,45,.07);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--bg);color:var(--txt);line-height:1.5;padding-bottom:90px}
+  header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:14px 16px 12px}
+  h1{margin:0;font-size:18px;display:flex;align-items:center;gap:8px}
+  .sub{color:var(--muted);font-size:12px;margin-top:2px}
+  .progwrap{margin-top:12px}
+  .progbar{height:9px;background:var(--card2);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+  .progfill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));
+    transition:width .35s ease;border-radius:99px}
+  .progtxt{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:6px}
+  .wrap{max-width:680px;margin:0 auto;padding:14px 14px 0}
+  .section{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    margin-bottom:14px;overflow:hidden;box-shadow:var(--shadow)}
+  .shead{padding:13px 15px;font-weight:600;font-size:15px;display:flex;
+    align-items:center;gap:9px;cursor:pointer;user-select:none;justify-content:space-between}
+  .shead .lft{display:flex;align-items:center;gap:9px}
+  .badge{font-size:11px;color:var(--muted);background:var(--card2);border:1px solid var(--line);
+    padding:2px 8px;border-radius:99px;font-weight:500}
+  .chev{transition:transform .25s;color:var(--muted);font-size:13px}
+  .section.collapsed .chev{transform:rotate(-90deg)}
+  .sbody{padding:4px 10px 10px}
+  .section.collapsed .sbody{display:none}
+  .item{display:flex;align-items:flex-start;gap:11px;padding:11px 9px;
+    border-radius:11px;cursor:pointer;transition:background .15s}
+  .item:active{background:var(--card2)}
+  .item+.item{border-top:1px solid var(--line)}
+  .cbox{flex:0 0 22px;width:22px;height:22px;border:2px solid var(--line);border-radius:7px;
+    margin-top:1px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+  .item.done .cbox{background:var(--accent);border-color:var(--accent)}
+  .cbox svg{width:13px;height:13px;opacity:0;transition:opacity .15s}
+  .item.done .cbox svg{opacity:1}
+  .itxt{flex:1;min-width:0}
+  .iname{font-size:14px;font-weight:500}
+  .item.done .iname{text-decoration:line-through;color:var(--muted)}
+  .imeta{font-size:12px;color:var(--muted);margin-top:2px;display:flex;flex-wrap:wrap;gap:6px}
+  .pill{background:var(--card2);border:1px solid var(--line);padding:1px 7px;border-radius:6px}
+  .pill.time{color:var(--accent2);border-color:#1e3a4a}
+  .note{padding:11px 15px;font-size:13px;color:var(--muted);background:var(--card2);
+    border-top:1px solid var(--line)}
+  .note b{color:var(--txt)}
+  .fixed-list{padding:6px 15px 14px}
+  .fixed-list .fl{display:flex;justify-content:space-between;gap:10px;padding:8px 0;
+    border-bottom:1px solid var(--line);font-size:14px}
+  .fixed-list .fl:last-child{border:0}
+  .fixed-list .fl span:last-child{color:var(--accent);font-weight:500;text-align:right}
+  footer{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.95);
+    backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:11px 14px;
+    display:flex;gap:10px;justify-content:center;align-items:center;z-index:30}
+  .btn{background:var(--card2);border:1px solid var(--line);color:var(--txt);
+    padding:10px 16px;border-radius:11px;font-size:13px;font-weight:500;cursor:pointer}
+  .btn:active{background:var(--line)}
+  .btn.primary{background:var(--accent);color:#08130c;border-color:var(--accent)}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:6px;
+    background:var(--card2);border:1px solid var(--line);color:var(--muted);margin-left:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🥗 Beslenme & Takviye Programı</h1>
+  <div class="sub" id="dateline"></div>
+  <div class="progwrap">
+    <div class="progbar"><div class="progfill" id="pf"></div></div>
+    <div class="progtxt"><span id="ptxt">0 / 0 tamamlandı</span><span id="ppct">0%</span></div>
+  </div>
+</header>
+
+<div class="wrap" id="app"></div>
+
+<footer>
+  <button class="btn" id="collapseAll">Hepsini Kapat</button>
+  <button class="btn primary" id="resetBtn">Günü Sıfırla</button>
+</footer>
+
+<script>
+const DATA = [
+  {icon:"🫀", title:"Kardiyo Öncesi Notlar", items:[
+    {n:"Soda + tuz + limon", a:"-", t:"Kardiyo öncesi"},
+    {n:"Hindistan cevizi yağı", a:"1 çay kaşığı", t:"Kardiyo öncesi"},
+    {n:"Kahve", a:"1", t:"Kardiyo öncesi"},
+  ]},
+  {icon:"🌅", title:"Sabah Uyanınca (Aç Karnına)", items:[
+    {n:"Glutamin / Creatin", a:"10 gr", t:"Aç karna"},
+    {n:"Alıç sirkesi", a:"1 yemek kaşığı", t:"Aç karna"},
+    {n:"Limon", a:"Yarım", t:"Aç karna"},
+    {n:"Su", a:"250 ml", t:"Aç karna"},
+    {n:"Gilaburu suyu", a:"Yarım çay bardağı", t:"Aç karna"},
+    {n:"Enginar suyu", a:"Yarım çay bardağı", t:"Aç karna"},
+    {n:"NAC 600", a:"1 adet", t:"Aç karna"},
+  ]},
+  {icon:"🍳", title:"1. Öğün (Kahvaltı)", items:[
+    {n:"6 yumurta (1 sarılı) omlet", a:"-"},
+    {n:"Yulaf", a:"80 gr (6-7 yemek kaşığı)"},
+    {n:"Hindistan cevizi yağı", a:"20 gr (1.5-2 yk)"},
+    {n:"Meyve", a:"150 gr — Ananas / Kırmızı meyveler"},
+    {n:"Haşlanmış sebze", a:"Günlük pay"},
+  ]},
+  {icon:"💊", title:"Kahvaltı Sonrası Takviyeler", items:[
+    {n:"Multivitamin", a:"1 servis", t:"Yemek sonrası"},
+    {n:"Omega 3", a:"1 kapsül", t:"Yemek sonrası"},
+    {n:"C vitamini", a:"1000 mg", t:"Yemek sonrası"},
+    {n:"Milk Thistle", a:"1", t:"Yemek sonrası"},
+    {n:"Liv 52", a:"2", t:"Yemek sonrası"},
+    {n:"Magnezyum", a:"1 kapsül (250 mg)", t:"Yemek sonrası"},
+    {n:"Cystone", a:"2", t:"Yemek sonrası"},
+    {n:"Speman", a:"2", t:"Yemek sonrası"},
+    {n:"Matofine", a:"Yarım tablet", t:"Yemek sonrası"},
+    {n:"Coraspin", a:"Pazartesi - Cuma", t:"Yemek sonrası"},
+    {n:"Saç - Diş", a:""},
+  ]},
+  {icon:"🍗", title:"2. Öğün", items:[
+    {n:"Hindi / Tavuk göğüs", a:"120 gr"},
+    {n:"Basmati pirinç", a:"200 gr"},
+    {n:"Zeytinyağı", a:"10 gr"},
+    {n:"Haşlanmış sebze", a:"Günlük pay"},
+  ]},
+  {icon:"☕", title:"Pre-Workout Öğün (İdman Öncesi & Sonrası)", items:[
+    {n:"Kahve", a:"1", t:"İdman Öncesi"},
+    {n:"Calsimax", a:"Yarım efervesan", t:"İdman Öncesi"},
+    {n:"Meyve", a:"100 gr", t:"İdman Sonrası"},
+    {n:"Protein Tozu", a:"1 ölçek", t:"İdman Sonrası"},
+    {n:"Pirinç Unu", a:"70 gr", t:"İdman Sonrası"},
+    {n:"Alpha Lipoic Acid 600 mg", a:"1 adet", t:"İdman Sonrası"},
+    {n:"Badem ezmesi", a:"20 gr (1.5 yk)", t:"İdman Sonrası"},
+  ]},
+  {icon:"🏋️", title:"3. Öğün (Post Workout & Akşam)", items:[
+    {n:"Kıyma / Somon / Levrek", a:"150 gr"},
+    {n:"Zeytinyağı", a:"15 gr"},
+    {n:"Yeşillik salatası", a:"Serbest"},
+    {n:"Pirinç patlağı", a:"2 adet"},
+  ]},
+  {icon:"🌙", title:"Gece (Yatmadan Önce)", items:[
+    {n:"Glutamin", a:"10 gr (1 yk)", t:"Yatmadan önce"},
+    {n:"Enginar suyu", a:"Yarım çay bardağı", t:"Yatmadan önce"},
+    {n:"C vitamini", a:"1", t:"Yemek sonrası"},
+    {n:"Milk Thistle", a:"1", t:"Yemek sonrası"},
+    {n:"Liv 52", a:"1", t:"Yemek sonrası"},
+    {n:"Cystone", a:"1", t:"Yemek sonrası"},
+    {n:"Speman", a:"1", t:"Yemek sonrası"},
+    {n:"Omega 3", a:"2 kapsül", t:"Yemek sonrası"},
+  ]},
+];
+
+const FIXED = {icon:"📊", title:"Günlük Sabitler", rows:[
+  ["Su","5.5 - 6 litre"],
+  ["İyotlu Tuz","10 gr Himalaya Tuzu"],
+  ["Sebze","1 kapya + 1 yeşil biber + 100-120 gr ıspanak"],
+]};
+
+const NOTES = [
+  "Şekersiz soslar serbest",
+  "Şekersiz içecekler ve baharat serbest",
+  "Salatalık, kuşkonmaz ve kabak tüketimi önerilir",
+];
+
+const SHOP = {icon:"🛒", title:"Alışveriş Notları", rows:[
+  ["Multivitamin","Eczane uygun"],
+  ["Omega 3","Tanesi ~10 TL, buna göre al"],
+  ["C vitamini","Eczane"],
+  ["Milk Thistle","Nar Ecza daha ucuz"],
+  ["Magnezyum","Tanesi ~10 TL, buna göre al"],
+]};
+
+// ---- state (in-memory only; resets each load — GitHub Pages safe) ----
+const state = {};
+let totalCount = 0;
+
+function keyFor(s,i){return `${s}-${i}`}
+
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  totalCount = 0;
+
+  DATA.forEach((sec, si)=>{
+    totalCount += sec.items.filter(x=>x.n).length;
+    const el = document.createElement('div');
+    el.className = 'section';
+    const doneN = sec.items.filter((x,i)=>x.n && state[keyFor(si,i)]).length;
+    const totN = sec.items.filter(x=>x.n).length;
+    el.innerHTML = `
+      <div class="shead">
+        <span class="lft"><span>${sec.icon}</span><span>${sec.title}</span></span>
+        <span class="lft"><span class="badge" data-badge="${si}">${doneN}/${totN}</span><span class="chev">▼</span></span>
+      </div>
+      <div class="sbody"></div>`;
+    const body = el.querySelector('.sbody');
+    sec.items.forEach((it, ii)=>{
+      if(!it.n) return;
+      const k = keyFor(si,ii);
+      const row = document.createElement('div');
+      row.className = 'item' + (state[k]?' done':'');
+      row.innerHTML = `
+        <div class="cbox"><svg viewBox="0 0 24 24" fill="none" stroke="#08130c" stroke-width="3.5"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="itxt">
+          <div class="iname">${it.n}</div>
+          <div class="imeta">
+            ${it.a? `<span class="pill">${it.a}</span>`:''}
+            ${it.t? `<span class="pill time">⏱ ${it.t}</span>`:''}
+          </div>
+        </div>`;
+      row.addEventListener('click', ()=>{ state[k]=!state[k]; render(); });
+      body.appendChild(row);
+    });
+    el.querySelector('.shead').addEventListener('click', e=>{
+      if(e.target.closest('.item'))return;
+      el.classList.toggle('collapsed');
+    });
+    app.appendChild(el);
+  });
+
+  // Fixed daily section
+  const f = document.createElement('div');
+  f.className='section';
+  f.innerHTML=`<div class="shead"><span class="lft"><span>${FIXED.icon}</span><span>${FIXED.title}</span></span><span class="chev">▼</span></div>
+    <div class="sbody"><div class="fixed-list">${FIXED.rows.map(r=>`<div class="fl"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('')}</div>
+    ${NOTES.map(n=>`<div class="note">• ${n}</div>`).join('')}</div>`;
+  f.querySelector('.shead').addEventListener('click',()=>f.classList.toggle('collapsed'));
+  app.appendChild(f);
+
+  // Shopping notes
+  const sh = document.createElement('div');
+  sh.className='section collapsed';
+  sh.innerHTML=`<div class="shead"><span class="lft"><span>${SHOP.icon}</span><span>${SHOP.title}</span></span><span class="chev">▼</span></div>
+    <div class="sbody"><div class="fixed-list">${SHOP.rows.map(r=>`<div class="fl"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('')}</div></div>`;
+  sh.querySelector('.shead').addEventListener('click',()=>sh.classList.toggle('collapsed'));
+  app.appendChild(sh);
+
+  updateProgress();
+}
+
+function updateProgress(){
+  const done = Object.values(state).filter(Boolean).length;
+  const pct = totalCount? Math.round(done/totalCount*100):0;
+  document.getElementById('pf').style.width = pct+'%';
+  document.getElementById('ptxt').textContent = `${done} / ${totalCount} tamamlandı`;
+  document.getElementById('ppct').textContent = pct+'%';
+}
+
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  for(const k in state) delete state[k];
+  render();
+});
+let allCollapsed=false;
+document.getElementById('collapseAll').addEventListener('click', e=>{
+  allCollapsed=!allCollapsed;
+  document.querySelectorAll('.section').forEach(s=>s.classList.toggle('collapsed', allCollapsed));
+  e.target.textContent = allCollapsed? 'Hepsini Aç':'Hepsini Kapat';
+});
+
+const days=['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+const now=new Date();
+document.getElementById('dateline').textContent =
+  `${now.getDate()} ${['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'][now.getMonth()]} ${now.getFullYear()} • ${days[now.getDay()]}`;
+
+render();
+</script>
+</body>
+</html>
